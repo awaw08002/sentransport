@@ -32,3 +32,37 @@ def get_ligne(ligne_id):
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+@app.route("/arrets")
+def get_arrets():
+    tous_les_arrets = set()
+    for ligne in lignes:
+        for arret in ligne["listeArrets"]:
+            tous_les_arrets.add(arret)
+    return jsonify(list(tous_les_arrets))
+
+@app.route("/stats")
+def get_stats():
+    nb_lignes = len(lignes)
+    nb_arrets_total = sum(l["arrets"] for l in lignes)
+    ligne_max = max(lignes, key=lambda l: l["arrets"])
+    return jsonify({
+        "nombre_lignes": nb_lignes,
+        "total_arrets": nb_arrets_total,
+        "ligne_plus_darrets": {
+            "numero": ligne_max["numero"],
+            "arrets": ligne_max["arrets"]
+        }
+    })
+
+
+from flask import Flask, jsonify, request  # ajouter request à l'import existant
+
+@app.route("/lignes/recherche")
+def recherche_lignes():
+    q = request.args.get("q", "").lower()
+    resultats = [
+        l for l in lignes
+        if q in l["depart"].lower() or q in l["arrivee"].lower()
+    ]
+    return jsonify(resultats)
