@@ -5,6 +5,9 @@ import Recherche from './Recherche';
 import LigneBus from './LigneBus';
 import DetailLigne from './DetailLigne';
 import Footer from './Footer';
+import Carte from './Carte';
+import Meteo from './Meteo';
+import SignalerIncident from './SignalerIncident';
 
 function App() {
   const [lignes, setLignes] = useState([]);
@@ -13,7 +16,10 @@ function App() {
   const [recherche, setRecherche] = useState("");
   const [ligneSelectionnee, setLigneSelectionnee] = useState(null);
 
-  useEffect(() => {
+  // Fonction extraite : appelable depuis useEffect ET depuis le bouton
+  function chargerLignes() {
+    setChargement(true);
+    setErreur(null);
     fetch("http://localhost:5000/lignes")
       .then(response => {
         if (!response.ok) {
@@ -29,6 +35,11 @@ function App() {
         setErreur(error.message);
         setChargement(false);
       });
+  }
+
+  // Au démarrage, on appelle la fonction
+  useEffect(() => {
+    chargerLignes();
   }, []);
 
   const lignesFiltrees = lignes.filter(l =>
@@ -37,13 +48,28 @@ function App() {
     l.numero.includes(recherche)
   );
 
-  function handleClickLigne(ligne) {
-    if (ligneSelectionnee && ligneSelectionnee.id === ligne.id) {
-      setLigneSelectionnee(null);
-    } else {
-      setLigneSelectionnee(ligne);
-    }
+ function handleClickLigne(ligne) {
+  // Si on reclique sur la même ligne, on ferme le détail
+  if (ligneSelectionnee && ligneSelectionnee.id === ligne.id) {
+    setLigneSelectionnee(null);
+    return;
   }
+
+  // Sinon on charge les détails depuis Flask
+  fetch(`http://localhost:5000/lignes/${ligne.id}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("Erreur chargement détail : " + response.status);
+      }
+      return response.json();
+    })
+    .then(data => {
+      setLigneSelectionnee(data);
+    })
+    .catch(error => {
+      console.error("Erreur :", error.message);
+    });
+}
 
   if (chargement) {
     return (
@@ -65,6 +91,10 @@ function App() {
             <p>Impossible de charger les lignes.</p>
             <p className="erreur-detail">{erreur}</p>
             <p>Vérifiez que le serveur Flask est lancé (python api/app.py).</p>
+            {/* Bouton Recharger visible aussi en cas d'erreur */}
+            <button className="btn-recharger" onClick={chargerLignes}>
+              Recharger
+            </button>
           </div>
         </main>
       </div>
@@ -75,6 +105,12 @@ function App() {
     <div className="App">
       <Header />
       <main className="contenu">
+
+        {/* Bouton Recharger */}
+        <button className="btn-recharger" onClick={chargerLignes}>
+          Recharger
+        </button>
+        <Meteo />
         <Recherche valeur={recherche} onChange={setRecherche} />
         <p className="resultat-recherche">
           {lignesFiltrees.length} ligne{lignesFiltrees.length > 1 ? 's' : ''}{' '}
@@ -92,6 +128,11 @@ function App() {
           />
         ))}
         {ligneSelectionnee && <DetailLigne ligne={ligneSelectionnee} />}
+
+        {ligneSelectionnee
+        && <DetailLigne ligne={ligneSelectionnee} />}
+        <Carte /> {/* NOUVEAU */}
+       <SignalerIncident />
       </main>
       <Footer />
     </div>
